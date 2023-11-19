@@ -1,0 +1,16 @@
+Proprioception 
+The sense of the location (x), movement (v) and action (actuation) of parts of the body. 
+
+OSC (Operational Space Control)
+A function that converts an action command into joint torques.
+
+tabula rasa
+Latin, clean slate
+
+BC (Behavioural Cloning)
+An RL algorithm
+
+IQL (Implicit Q Learning)
+
+Domain gaps
+The gap between real world performance and machine learning models developed in simulation.

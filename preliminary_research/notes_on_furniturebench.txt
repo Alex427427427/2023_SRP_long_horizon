@@ -1,0 +1,37 @@
+What it is:
+    A real-world long-horizon-robotic-manipulation benchmark. 
+    A suite of 8 furniture assembly tasks, defined by their hardware and software 
+    setup, and demonstration data for training. 
+
+Why:
+    To encourage advancement in the field of robotics, to automate complex long-horizon tasks 
+    that require nontrivial state reasoning. There is not yet a composite manipulation task 
+    benchmark that has variety. An easily reproducible benchmark allows researchers across 
+    the world to develop and test new algorithms for these tasks. 
+
+The Setup:
+    Agent: A Franka Panda robot. 
+    Observation: front, rear and wrist cameras. A proprioceptive robot state (ee pos, ee orientation, ee velocity, gripper width). 
+    Control: OSC (Operational Space Control), on delta-pose, at 10Hz. 
+    Hardware Environment: 3D printed furnitures. April tags are NOT used for observation but to help the 
+        human during setup, making the benchmark reproducible. 
+    Software Environment: Docker image. Python based controller, Polymetics. 
+        Task initialisation tool with GUI, that samples from pre-defined distributions of part poses 
+        and guides the user to match the poses. 
+        A simulated environment FurenitureSim to help quickly verify algorithms. 
+
+Their method of evaluation:
+    Reproducibility analysis. Testes how identical pre-trained policies perform across multiple set ups.
+
+Their findings:
+    Upon training with BC and IQL, they found that neither state-of-the-art RL algorithms were able to solve 
+    the full assembly tasks. For the single tasks, grasping and placing have a 60-70% success rate 
+    and insertion and screwing had almost 0%. 
+
+    A wrist camera is necessary for this task, because there was a significant performance drop after removing it.
+
+    The vision based solution does not cheat using April tags because there was no significant performance drop after removing them. 
+
+Limitations:
+    There is a simulation-to-real-world gap caused by inaccurate robot modelling, where the same torque commands lead to different robot trajectories in simulation and real world. 
+    The tasks are also tailored for single arms, making certain actions impossible. 
