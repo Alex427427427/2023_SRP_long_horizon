@@ -1,0 +1,8 @@
+running a furnituresim with no action:
+    python -m furniture_bench.scripts.run_sim_env --furniture <furniture> --no-action
+
+    (where <furniture>=[lamp|square_table|desk|drawer|cabinet|round_table|stool|chair|one_leg].)
+
+running a scripted furnituresim:
+    python -m furniture_bench.scripts.run_sim_env --furniture one_leg --scripted
+
