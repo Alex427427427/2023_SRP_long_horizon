@@ -247,7 +247,7 @@ class GridEnv():
                 plt.title('Best action')
 
                 plt.subplot(2,1,2)
-                plt.plot(rewards,'o',alpha=0.01)
+                plt.plot(rewards,'-',alpha=0.01)
                 plt.ylabel('Reward')
                 plt.xlabel('Env interaction')
                 plt.savefig(f"gifs/img_{k}.png")
