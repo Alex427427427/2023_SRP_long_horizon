@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from IPython import display
 import torch
+import os
+import glob
 
 class GridEnv():
     # note the array is flipped when plotted
@@ -35,7 +37,9 @@ class GridEnv():
         self.sparse = sparse
         self.fv = lambda x,y : np.exp(-1*((x-self.xl)**2+(y-self.yl)**2)) # e^(-dist^2). gaussian proximity reward function
         if sparse or model is None:
-            self.f = self.fv(self.yy, self.xx) # reward vector
+            #self.f = self.fv(self.yy, self.xx) # reward vector
+            self.f = np.zeros((self.N, self.N))
+            self.f[self.xl, self.yl] = 1.0
         else:
             self.model = model
             # create a tensor of the grid
@@ -128,6 +132,9 @@ class GridEnv():
         plt.plot(state[0],state[1],'ro') # agent location
         plt.plot(trajectory[:, 0]+0.5, trajectory[:, 1]+0.5, 'b-')
 
+    def shrink_reward(self, shrink_factor):
+        self.f *= np.exp(-shrink_factor*(self.times)**2)
+
     # takes in the env, Q table, episode length
     # plays one episode
     # plots the reward and q value for every step. 
@@ -175,7 +182,11 @@ class GridEnv():
                 break
         return rsum, xm
     
-    def value_iteration(self,init=None,iters=10000,alpha=0.9,gamma=0.9,final_greediness=0.5,eps_anneal=True,plot_freq=1000,disp=True, reward_shrink=0.0):
+    def value_iteration(self,init=None,iters=10000,alpha=0.9,gamma=0.9,final_greediness=0.5,eps_anneal=True,plot_freq=1000,disp=True, reward_shrink=0.0,
+                        save_folder=None):
+        if save_folder is not None:
+            for f in glob.glob(f"{save_folder}/*"):
+                os.remove(f)
         if init is None:
             Q = np.ones((self.N*self.N,self.action_space.shape[0])) # initialise Q table
         else:
@@ -247,12 +258,102 @@ class GridEnv():
                 plt.title('Best action')
 
                 plt.subplot(2,1,2)
-                plt.plot(rewards,'-',alpha=0.01)
+                plt.plot(rewards,'o',alpha=0.01)
                 plt.ylabel('Reward')
                 plt.xlabel('Env interaction')
-                plt.savefig(f"gifs/img_{k}.png")
+                if save_folder is not None:
+                    plt.savefig(f"{save_folder}/img_{k}.png")
                 display.clear_output(wait=True)
                 plt.show()
                 k += 1
                 print (f"Greediness: {greediness}")
         return Q
+    
+    def value_iter2(self,init=None,iters=10000,alpha=0.9,gamma=0.9,initial_eps=1.0,eps_anneal_rate=0.0,plot_freq=1000,disp=True, reward_shrink=0.0,
+                        save_folder=None):
+        if save_folder is not None:
+            for f in glob.glob(f"{save_folder}/*"):
+                os.remove(f)
+        if init is None:
+            Q = np.ones((self.N*self.N,self.action_space.shape[0])) # initialise Q table
+        else:
+            Q = init
+        reward = 0
+        if disp:
+            plt.figure(figsize=(15,5))
+        xm = []
+        rewards = []
+        k = 0
+        for j in range(iters):
+            state = np.copy(self.state)
+            
+            # Epsilon-greedy
+            if eps_anneal_rate > 0:
+                greediness = 1 - initial_eps*np.exp(-j/iters*eps_anneal_rate) # asymptotically rising exponential to the final greediness
+            else:
+                greediness = 1 - initial_eps*np.exp(-j/iters*eps_anneal_rate)
+                
+            if np.random.rand() < greediness:
+                a = np.argmax(Q[self.N*state[0]+state[1],:])
+            else:
+                a = np.random.randint(self.action_space.shape[0])
+
+            new_state, new_reward, done = self.step(a)
+            xm.append(np.copy(new_state))
+
+            new_a = np.argmax(Q[self.N*new_state[0]+new_state[1],:])
+            Qmax = Q[self.N*new_state[0]+new_state[1],new_a]
+            Q[self.N*state[0]+state[1],a] = (1-alpha)*Q[self.N*state[0]+state[1],a] + alpha*(reward + gamma*Qmax)
+            reward = new_reward
+            
+            rewards.append(reward)
+
+            # shrink the reward
+            if reward_shrink > 0:
+                if j % plot_freq == 0:
+                    self.f *= np.exp(-reward_shrink*(self.times)**2)
+            
+            if self.sparse:
+                reward_title = "True reward"
+            else:
+                reward_title = "Expanded reward"
+            
+            
+            if (j %plot_freq == 0) and (disp):
+                s = np.copy(self.state)
+                plt.subplot(2,3,1)
+                plt.imshow(self.f.T,origin='lower', cmap='gray')
+                plt.plot(s[0],s[1],'ro') # agent location
+                plt.axis('off')
+                plt.colorbar()
+    #             plt.plot(np.vstack(xm)[:,0],np.vstack(xm)[:,1])
+                plt.title(reward_title, fontsize=7)
+
+                plt.subplot(2,3,2)
+                plt.imshow(np.max(Q,axis=1).reshape(self.N,self.N).T,origin='lower', cmap='gray')
+                plt.plot(s[0],s[1],'ro') # agent location
+                plt.axis('off')
+                plt.colorbar()
+    #             plt.plot(np.vstack(xm)[:,0],np.vstack(xm)[:,1])
+                plt.title('Q value')
+
+                plt.subplot(2,3,3)
+                plt.imshow(np.argmax(Q,axis=1).reshape(self.N,self.N).T,origin='lower', cmap='gray')
+                plt.plot(s[0],s[1],'ro') # agent location
+                plt.axis('off')
+    #             plt.plot(np.vstack(xm)[:,0],np.vstack(xm)[:,1])
+                plt.title('Best action')
+
+                plt.subplot(2,1,2)
+                plt.plot(rewards,'o',alpha=0.01)
+                plt.ylabel('Reward')
+                plt.xlabel('Env interaction')
+                if save_folder is not None:
+                    plt.savefig(f"{save_folder}/img_{k}.png")
+                display.clear_output(wait=True)
+                plt.show()
+                k += 1
+                print (f"Greediness: {greediness}")
+        return Q
+    
+    
