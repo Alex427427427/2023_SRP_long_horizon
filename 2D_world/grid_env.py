@@ -123,7 +123,9 @@ class GridEnv():
         state = np.copy(self.state)+0.5
         plt.figure(figsize=(5,5))
         plt.imshow(self.f.T, origin="lower", cmap='gray')
-        plt.plot(state[0],state[1],'ro') # agent location
+        plt.plot(self.xl,self.yl,'gx') # goal location
+        plt.show()
+        #plt.plot(state[0],state[1],'ro') # agent location
 
     def plot_reward_and_trajectory(self, trajectory):
         state = np.copy(self.state)+0.5
@@ -197,26 +199,33 @@ class GridEnv():
         xm = []
         rewards = []
         k = 0
+        # take time steps.
         for j in range(iters):
+            # observe.
             state = np.copy(self.state)
             
-            # Epsilon-greedy
+            # calculate greediness.
             if eps_anneal:
                 greediness = final_greediness*np.exp(1-iters/(j+1)) # asymptotically rising exponential to the final greediness
             else:
                 greediness = final_greediness
-                
+            
+            # choose action.
             if np.random.rand() < greediness:
                 a = np.argmax(Q[self.N*state[0]+state[1],:])
             else:
                 a = np.random.randint(self.action_space.shape[0])
 
+            # take action. receive reward. observe new state.
             new_state, new_reward, done = self.step(a)
             xm.append(np.copy(new_state))
 
+            # choose best action at the new state, according to current knowledge. 
             new_a = np.argmax(Q[self.N*new_state[0]+new_state[1],:])
+            # get the Q value of the best action chosen at the new state. 
             Qmax = Q[self.N*new_state[0]+new_state[1],new_a]
-            Q[self.N*state[0]+state[1],a] = (1-alpha)*Q[self.N*state[0]+state[1],a] + alpha*(reward + gamma*Qmax)
+            # update the Q value of the current state and action. alpha is step size. use the reward of the previous step. 
+            Q[self.N*state[0]+state[1],a] = (1-alpha)*Q[self.N*state[0]+state[1],a] + alpha*(new_reward + gamma*Qmax)
             reward = new_reward
             
             rewards.append(reward)
@@ -303,7 +312,7 @@ class GridEnv():
 
             new_a = np.argmax(Q[self.N*new_state[0]+new_state[1],:])
             Qmax = Q[self.N*new_state[0]+new_state[1],new_a]
-            Q[self.N*state[0]+state[1],a] = (1-alpha)*Q[self.N*state[0]+state[1],a] + alpha*(reward + gamma*Qmax)
+            Q[self.N*state[0]+state[1],a] = (1-alpha)*Q[self.N*state[0]+state[1],a] + alpha*(new_reward + gamma*Qmax)
             reward = new_reward
             
             rewards.append(reward)
@@ -344,10 +353,10 @@ class GridEnv():
     #             plt.plot(np.vstack(xm)[:,0],np.vstack(xm)[:,1])
                 plt.title('Best action')
 
-                plt.subplot(2,1,2)
-                plt.plot(rewards,'o',alpha=0.01)
-                plt.ylabel('Reward')
-                plt.xlabel('Env interaction')
+                #plt.subplot(2,1,2)
+                #plt.plot(rewards,'o',alpha=0.01)
+                #plt.ylabel('Reward')
+                #plt.xlabel('Env interaction')
                 if save_folder is not None:
                     plt.savefig(f"{save_folder}/img_{k}.png")
                 display.clear_output(wait=True)
@@ -356,4 +365,25 @@ class GridEnv():
                 print (f"Greediness: {greediness}")
         return Q
     
-    
+    def evaluate_Q(self, Q, episodes=500, steps=100, initial_eps=1.0, eps_anneal_rate=0.7):
+        goals_reached = 0
+        for i in range(episodes):
+            self.reset()
+            for j in range(steps):
+                # Epsilon-greedy
+                if eps_anneal_rate > 0:
+                    greediness = 1 - initial_eps*np.exp(-j/steps*eps_anneal_rate)
+                else:
+                    greediness = 1 - initial_eps*np.exp(-j/steps*eps_anneal_rate)
+
+                if np.random.rand() < greediness:
+                    a = np.argmax(Q[self.N*self.state[0]+self.state[1],:])
+                else:
+                    a = np.random.randint(self.action_space.shape[0])
+
+                new_state, new_reward, done = self.step(a)
+                if done:
+                    goals_reached += 1
+                    break
+            
+        return goals_reached/episodes
