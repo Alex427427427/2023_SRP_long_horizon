@@ -79,11 +79,11 @@ class Maze():
         while True:
             x0 = np.random.randint(self.N)
             y0 = np.random.randint(self.N)
-            # if the location is not an obstacle, is not the goal, and is not in the box, then break
+            # if the location is not an obstacle, is not the goal, and is not in a box, then break
             obs = self.occ_map[x0,y0]
             goal = (x0 == self.xl) and (y0 == self.yl)
-            #box = (x0 >= 8) and (x0 <= 10) and (y0 >= 6) and (y0 <= 16)
-            if (obs == 0) and (not goal):
+            box = (x0 >= 8) and (x0 <= 10) and (y0 >= 6) and (y0 <= 16)
+            if (obs == 0) and (not goal) and (not box):
                 break
         return np.array([x0,y0])
     # apply action and update the state
@@ -151,7 +151,7 @@ class Maze():
     # takes in the env, Q table, episode length
     # plays one episode
     # plots the reward and q value for every step. 
-    def test_value(self,Q,steps=50,disp=True, greediness=1.0):
+    def test_value(self,Q,steps=200,disp=True, greediness=1.0):
         state = self.reset()
         xm = [] # state
         rsum = 0 # total reward
@@ -195,7 +195,8 @@ class Maze():
                 break
         return rsum, xm
     
-    def value_iteration(self,init=None,num_eps=1000,ep_length=1000,alpha=0.9,gamma=0.9,final_greediness=0.5,eps_anneal=True,plot_freq=1000,disp=True, reward_shrink=0.0,
+    def value_iteration(self,init=None,num_eps=1000,ep_length=1000,alpha=0.9,gamma=0.9,final_greediness=0.5,eps_anneal=True,plot_freq=1000,disp=True, 
+                        reward_shrink=0.0, shrink_freq=10,
                         save_folder=None):
         if save_folder is not None:
             for f in glob.glob(f"{save_folder}/*"):
@@ -213,6 +214,11 @@ class Maze():
         for i in range(num_eps):
             # reset the environment
             self.reset()
+
+            # shrink the reward
+            if reward_shrink > 0:
+                if i % shrink_freq == 0:
+                    self.f *= np.exp(-reward_shrink*(self.times)**2)
             
             # take time steps.
             for j in range(ep_length):
@@ -244,11 +250,6 @@ class Maze():
                 reward = new_reward
                 
                 rewards.append(reward)
-
-                # shrink the reward
-                if reward_shrink > 0:
-                    if j % plot_freq == 0:
-                        self.f *= np.exp(-reward_shrink*(self.times)**2)
                 
                 if self.sparse:
                     reward_title = "True reward"
@@ -262,15 +263,15 @@ class Maze():
                     plt.imshow(self.f.T,origin='lower', cmap='gray')
                     plt.plot(s[0],s[1],'ro') # agent location
                     plt.axis('off')
-                    plt.colorbar()
+                    #plt.colorbar()
         #             plt.plot(np.vstack(xm)[:,0],np.vstack(xm)[:,1])
-                    plt.title(reward_title, fontsize=7)
+                    plt.title(reward_title)
 
                     plt.subplot(2,3,2)
                     plt.imshow(np.max(Q,axis=1).reshape(self.N,self.N).T,origin='lower', cmap='gray')
                     plt.plot(s[0],s[1],'ro') # agent location
                     plt.axis('off')
-                    plt.colorbar()
+                    #plt.colorbar()
         #             plt.plot(np.vstack(xm)[:,0],np.vstack(xm)[:,1])
                     plt.title('Q value')
 
@@ -290,7 +291,7 @@ class Maze():
                     display.clear_output(wait=True)
                     plt.show()
                     k += 1
-                    print (f"Greediness: {greediness}")
+                #print (f"Greediness: {greediness}")
         return Q
     
     def value_iter2(self,init=None,iters=10000,alpha=0.9,gamma=0.9,initial_eps=1.0,eps_anneal_rate=0.0,plot_freq=1000,disp=True, reward_shrink=0.0,

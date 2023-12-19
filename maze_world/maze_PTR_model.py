@@ -3,16 +3,20 @@ import torch.nn.functional as F
 import torch.optim
 
 # create a preference learning model
-class GridPTRModel(nn.Module):
+class MazePTRModel(nn.Module):
     def __init__(self):
-        super(GridPTRModel, self).__init__()
+        super(MazePTRModel, self).__init__()
         self.fc = nn.Sequential(
-            nn.Linear(2, 64),
-            nn.Sigmoid(),
+            nn.Linear(2, 256),
+            nn.LeakyReLU(),
+            nn.Linear(256, 128),
+            nn.LeakyReLU(),
+            nn.Linear(128, 64),
+            nn.LeakyReLU(),
             nn.Linear(64, 32),
-            nn.Sigmoid(),
+            nn.LeakyReLU(),
             nn.Linear(32, 16),
-            nn.Sigmoid(),
+            nn.LeakyReLU(),
             nn.Linear(16, 1)
         )
         self.sigmoid = nn.Sigmoid()
