@@ -17,12 +17,7 @@ def png_to_numpy(png_file):
     img = (img < 0.5).astype(np.float32)
     return img
 
-if __name__ == "__main__":
-    maze_filename = "mazes/maze_1.png"
-    # convert into numpy array, display the maze
-    maze = png_to_numpy(maze_filename)
-    plt.imshow(maze.T,origin='lower',cmap='gray')
-    plt.show()
+
 
 class Maze():
     # note the array is flipped when plotted
@@ -41,8 +36,8 @@ class Maze():
         
 
         # goal location
-        self.xl = 11 
-        self.yl = 18
+        self.xl = 19 
+        self.yl = 15
         
         # reward
         self.sparse = sparse
@@ -76,15 +71,19 @@ class Maze():
         self.goal_reward = goal_reward
         
     def search_for_free_state(self):
-        while True:
-            x0 = np.random.randint(self.N)
-            y0 = np.random.randint(self.N)
+        #while True:
+            #x0 = np.random.randint(self.N)
+            #y0 = np.random.randint(self.N)
             # if the location is not an obstacle, is not the goal, and is not in a box, then break
-            obs = self.occ_map[x0,y0]
-            goal = (x0 == self.xl) and (y0 == self.yl)
-            box = (x0 >= 8) and (x0 <= 10) and (y0 >= 6) and (y0 <= 16)
-            if (obs == 0) and (not goal) and (not box):
-                break
+            #obs = self.occ_map[x0,y0]
+            #goal = (x0 == self.xl) and (y0 == self.yl)
+            #box = (x0 >= 8) and (x0 <= 10) and (y0 >= 6) and (y0 <= 16)
+            #if (obs == 0) and (not goal) and (not box):
+                #break
+        # randomly select x from 3 to 37
+        # randomly select y from 0 to 12
+        x0 = np.random.randint(3, 37)
+        y0 = np.random.randint(12)
         return np.array([x0,y0])
     # apply action and update the state
     def mm(self,X,u):
@@ -403,3 +402,13 @@ class Maze():
                     break
             
         return goals_reached/episodes
+    
+if __name__ == "__main__":
+    #maze_filename = "mazes/maze_1.png"
+    # convert into numpy array, display the maze
+    #maze = png_to_numpy(maze_filename)
+    #plt.imshow(maze.T,origin='lower',cmap='gray')
+    #plt.show()
+
+    maze = Maze()
+    maze.plot()
