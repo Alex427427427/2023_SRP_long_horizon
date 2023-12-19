@@ -184,7 +184,8 @@ class GridEnv():
                 break
         return rsum, xm
     
-    def value_iteration(self,init=None,iters=10000,alpha=0.9,gamma=0.9,final_greediness=0.5,eps_anneal=True,plot_freq=1000,disp=True, reward_shrink=0.0,
+    def value_iteration(self,init=None,num_eps=1000,ep_length=1000,alpha=0.9,gamma=0.9,final_greediness=0.5,eps_anneal=True,plot_freq=1000,disp=True, 
+                        reward_shrink=0.0, shrink_freq=10,
                         save_folder=None):
         if save_folder is not None:
             for f in glob.glob(f"{save_folder}/*"):
@@ -199,83 +200,87 @@ class GridEnv():
         xm = []
         rewards = []
         k = 0
-        # take time steps.
-        for j in range(iters):
-            # observe.
-            state = np.copy(self.state)
-            
-            # calculate greediness.
-            if eps_anneal:
-                greediness = final_greediness*np.exp(1-iters/(j+1)) # asymptotically rising exponential to the final greediness
-            else:
-                greediness = final_greediness
-            
-            # choose action.
-            if np.random.rand() < greediness:
-                a = np.argmax(Q[self.N*state[0]+state[1],:])
-            else:
-                a = np.random.randint(self.action_space.shape[0])
-
-            # take action. receive reward. observe new state.
-            new_state, new_reward, done = self.step(a)
-            xm.append(np.copy(new_state))
-
-            # choose best action at the new state, according to current knowledge. 
-            new_a = np.argmax(Q[self.N*new_state[0]+new_state[1],:])
-            # get the Q value of the best action chosen at the new state. 
-            Qmax = Q[self.N*new_state[0]+new_state[1],new_a]
-            # update the Q value of the current state and action. alpha is step size. use the reward of the previous step. 
-            Q[self.N*state[0]+state[1],a] = (1-alpha)*Q[self.N*state[0]+state[1],a] + alpha*(new_reward + gamma*Qmax)
-            reward = new_reward
-            
-            rewards.append(reward)
+        for i in range(num_eps):
+            # reset the environment
+            self.reset()
 
             # shrink the reward
             if reward_shrink > 0:
-                if j % plot_freq == 0:
+                if i % shrink_freq == 0:
                     self.f *= np.exp(-reward_shrink*(self.times)**2)
             
-            if self.sparse:
-                reward_title = "True reward"
-            else:
-                reward_title = "Expanded reward"
-            
-            
-            if (j %plot_freq == 0) and (disp):
-                s = np.copy(self.state)
-                plt.subplot(2,3,1)
-                plt.imshow(self.f.T,origin='lower', cmap='gray')
-                plt.plot(s[0],s[1],'ro') # agent location
-                plt.axis('off')
-                plt.colorbar()
-    #             plt.plot(np.vstack(xm)[:,0],np.vstack(xm)[:,1])
-                plt.title(reward_title, fontsize=7)
+            # take time steps.
+            for j in range(ep_length):
+                # observe.
+                state = np.copy(self.state)
+                
+                # calculate greediness.
+                if eps_anneal:
+                    greediness = final_greediness*np.exp(1-ep_length/(j+1)) # asymptotically rising exponential to the final greediness
+                else:
+                    greediness = final_greediness
+                
+                # choose action.
+                if np.random.rand() < greediness:
+                    a = np.argmax(Q[self.N*state[0]+state[1],:])
+                else:
+                    a = np.random.randint(self.action_space.shape[0])
 
-                plt.subplot(2,3,2)
-                plt.imshow(np.max(Q,axis=1).reshape(self.N,self.N).T,origin='lower', cmap='gray')
-                plt.plot(s[0],s[1],'ro') # agent location
-                plt.axis('off')
-                plt.colorbar()
-    #             plt.plot(np.vstack(xm)[:,0],np.vstack(xm)[:,1])
-                plt.title('Q value')
+                # take action. receive reward. observe new state.
+                new_state, new_reward, done = self.step(a)
+                xm.append(np.copy(new_state))
 
-                plt.subplot(2,3,3)
-                plt.imshow(np.argmax(Q,axis=1).reshape(self.N,self.N).T,origin='lower', cmap='gray')
-                plt.plot(s[0],s[1],'ro') # agent location
-                plt.axis('off')
-    #             plt.plot(np.vstack(xm)[:,0],np.vstack(xm)[:,1])
-                plt.title('Best action')
+                # choose best action at the new state, according to current knowledge. 
+                new_a = np.argmax(Q[self.N*new_state[0]+new_state[1],:])
+                # get the Q value of the best action chosen at the new state. 
+                Qmax = Q[self.N*new_state[0]+new_state[1],new_a]
+                # update the Q value of the current state and action. alpha is step size. use the reward of the previous step. 
+                Q[self.N*state[0]+state[1],a] = (1-alpha)*Q[self.N*state[0]+state[1],a] + alpha*(new_reward + gamma*Qmax)
+                reward = new_reward
+                
+                rewards.append(reward)
+                
+                if self.sparse:
+                    reward_title = "True reward"
+                else:
+                    reward_title = "Expanded reward"
+                
+                
+                if (j %plot_freq == 0) and (disp):
+                    s = np.copy(self.state)
+                    plt.subplot(2,3,1)
+                    plt.imshow(self.f.T,origin='lower', cmap='gray')
+                    plt.plot(s[0],s[1],'ro') # agent location
+                    plt.axis('off')
+                    #plt.colorbar()
+        #             plt.plot(np.vstack(xm)[:,0],np.vstack(xm)[:,1])
+                    plt.title(reward_title)
 
-                plt.subplot(2,1,2)
-                plt.plot(rewards,'o',alpha=0.01)
-                plt.ylabel('Reward')
-                plt.xlabel('Env interaction')
-                if save_folder is not None:
-                    plt.savefig(f"{save_folder}/img_{k}.png")
-                display.clear_output(wait=True)
-                plt.show()
-                k += 1
-                print (f"Greediness: {greediness}")
+                    plt.subplot(2,3,2)
+                    plt.imshow(np.max(Q,axis=1).reshape(self.N,self.N).T,origin='lower', cmap='gray')
+                    plt.plot(s[0],s[1],'ro') # agent location
+                    plt.axis('off')
+                    #plt.colorbar()
+        #             plt.plot(np.vstack(xm)[:,0],np.vstack(xm)[:,1])
+                    plt.title('Q value')
+
+                    plt.subplot(2,3,3)
+                    plt.imshow(np.argmax(Q,axis=1).reshape(self.N,self.N).T,origin='lower', cmap='gray')
+                    plt.plot(s[0],s[1],'ro') # agent location
+                    plt.axis('off')
+        #             plt.plot(np.vstack(xm)[:,0],np.vstack(xm)[:,1])
+                    plt.title('Best action')
+
+                    plt.subplot(2,1,2)
+                    plt.plot(rewards,'o',alpha=0.01)
+                    plt.ylabel('Reward')
+                    plt.xlabel('Env interaction')
+                    if save_folder is not None:
+                        plt.savefig(f"{save_folder}/img_{k}.png")
+                    display.clear_output(wait=True)
+                    plt.show()
+                    k += 1
+                #print (f"Greediness: {greediness}")
         return Q
     
     def value_iter2(self,init=None,iters=10000,alpha=0.9,gamma=0.9,initial_eps=1.0,eps_anneal_rate=0.0,plot_freq=1000,disp=True, reward_shrink=0.0,
