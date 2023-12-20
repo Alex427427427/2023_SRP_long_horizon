@@ -7,13 +7,13 @@ class MazePTRModel(nn.Module):
     def __init__(self):
         super(MazePTRModel, self).__init__()
         self.fc = nn.Sequential(
-            nn.Linear(2, 256),
+            nn.Linear(2, 1600),
             nn.LeakyReLU(),
-            nn.Linear(256, 256),
+            nn.Linear(1600, 400),
             nn.LeakyReLU(),
-            nn.Linear(256, 256),
+            nn.Linear(400, 100),
             nn.LeakyReLU(),
-            nn.Linear(256, 1)
+            nn.Linear(100, 1)
         )
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.LeakyReLU()
