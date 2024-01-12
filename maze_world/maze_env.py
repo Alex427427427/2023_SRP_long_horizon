@@ -43,7 +43,7 @@ class Maze():
         self.state = self.free_state_search()
 
         # actions: up down left right
-        self.action_space = np.array([[0,1],[0,-1],[-1,0],[1,0]]) # up down left right
+        self.action_space = np.array([[0,1],[0,-1],[-1,0],[1,0],[0,0]]) # up down left right stay
         self.move_penalty = move_penalty
 
         # initialise reward landscape
@@ -138,8 +138,9 @@ class Maze():
 
         # compute reward
         reward = self.reward_landscape[new_state[0],new_state[1]]
-        # subtract movement penalty
-        reward = reward - self.move_penalty
+        # subtract movement penalty if the agent has not stayed still
+        if idx != 4:
+            reward = reward - self.move_penalty
         # subtract collision penalty
         if collision:
             reward = reward - self.collision_penalty

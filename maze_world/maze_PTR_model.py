@@ -9,11 +9,9 @@ class MazePTRModel(nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(2, 1600),
             nn.LeakyReLU(),
-            nn.Linear(1600, 400),
+            nn.Linear(1600, 1600),
             nn.LeakyReLU(),
-            nn.Linear(400, 100),
-            nn.LeakyReLU(),
-            nn.Linear(100, 1)
+            nn.Linear(1600, 1)
         )
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.LeakyReLU()
