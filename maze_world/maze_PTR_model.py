@@ -8,9 +8,9 @@ class MazePTRModel(nn.Module):
         super(MazePTRModel, self).__init__()
         self.fc = nn.Sequential(
             nn.Linear(2, 1600),
-            nn.LeakyReLU(),
+            nn.Sigmoid(),
             nn.Linear(1600, 1600),
-            nn.LeakyReLU(),
+            nn.Sigmoid(),
             nn.Linear(1600, 1)
         )
         self.sigmoid = nn.Sigmoid()

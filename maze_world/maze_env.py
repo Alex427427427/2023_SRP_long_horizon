@@ -78,7 +78,7 @@ class Maze():
     # returns a random state free from obstacle from the start zone
     def start_zone_search(self):
         while True:
-            x0 = np.random.randint(3,37)
+            x0 = np.random.randint(14,26)
             y0 = np.random.randint(12)
             #if the location is not an obstacle, is not the goal, then break
             obs = self.occ_map[x0,y0]
@@ -173,8 +173,8 @@ class Maze():
     # plays one episode
     # plots the reward and q value for every step. 
     # returns the trajectory and whether the goal is reached
-    def test_Q_once(self, Q, episode_length=200, final_greediness=0.5, eps_anneal=True, start_zone=False, disp=False):
-        if start_zone:
+    def test_Q_once(self, Q, episode_length=200, final_greediness=0.5, eps_anneal=True, use_start_zone=False, disp=False):
+        if use_start_zone:
             state = self.reset_to_start_zone()
         else:
             state = self.reset_to_free_state()
@@ -238,17 +238,17 @@ class Maze():
     # takes in the env, Q table, episode length
     # plays over multiple episodes with specified length, and annealing epsilon
     # returns a single number indicating the fraction of episodes where the goal is reached
-    def evaluate_Q(self, Q, episodes=500, episode_length=100, final_greediness=0.5,eps_anneal=True, start_zone=False):
+    def evaluate_Q(self, Q, episodes=500, episode_length=100, final_greediness=0.5,eps_anneal=True, use_start_zone=False):
         goals_reached = 0
         for i in range(episodes):
             traj, success = self.test_Q_once(Q, episode_length=episode_length, disp=False, 
-                                             final_greediness=final_greediness, eps_anneal=eps_anneal, start_zone=start_zone)
+                                             final_greediness=final_greediness, eps_anneal=eps_anneal, use_start_zone=use_start_zone)
             if success:
                 goals_reached += 1
         return goals_reached/episodes
     
     # train Q for 1 epoch
-    def train_Q_1_epoch(self, init_Q=None, episodes=500, episode_length=500, start_zone=False,
+    def train_Q_1_epoch(self, init_Q=None, episodes=500, episode_length=500, use_start_zone=False,
                         alpha=0.9,gamma=0.9,
                         final_greediness=0.5,eps_anneal=True,
                         reward_shrink=0.0, shrink_freq=10,
@@ -281,7 +281,7 @@ class Maze():
         
         for i in range(episodes):
             # reset the environment
-            if start_zone:
+            if use_start_zone:
                 self.reset_to_start_zone()
             else:
                 self.reset_to_free_state()
