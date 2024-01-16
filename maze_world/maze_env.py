@@ -72,8 +72,8 @@ class Maze():
             self.reward_landscape = rewards
         
     # apply a gaussian contraction on the reward landscape
-    def shrink_reward(self, shrink_factor):
-        self.reward_landscape *= np.exp(-shrink_factor*(self.times)**2)
+    def shrink_reward(self, shrink_scaling=1, shrink_order=1):
+        self.reward_landscape *= np.exp(-shrink_scaling*(self.times)**(2*shrink_order))
     
     # returns a random state free from obstacle from the start zone
     def start_zone_search(self):
