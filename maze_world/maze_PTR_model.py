@@ -8,7 +8,7 @@ class MazePTRModel(nn.Module):
         super(MazePTRModel, self).__init__()
         
         # positional encoding
-        self.feature_dimension = 10
+        self.feature_dimension = 40
         self.max_spatial_period = 40
         even_i = torch.arange(0, self.feature_dimension, 2).float()   # even indices starting at 0
         odd_i = torch.arange(1, self.feature_dimension, 2).float()    # odd indices starting at 1
@@ -17,15 +17,15 @@ class MazePTRModel(nn.Module):
         even_PE = torch.sin(positions / denominator)
         odd_PE =  torch.cos(positions / denominator)
         stacked = torch.stack([even_PE, odd_PE], dim=2)
-        self.final_PE = torch.flatten(stacked, start_dim=1, end_dim=2)
+        self.pe = torch.flatten(stacked, start_dim=1, end_dim=2)
 
         # network
         self.fc = nn.Sequential(
-            nn.Linear(2*self.feature_dimension, 800), # augmented input
+            nn.Linear(2*self.feature_dimension, 1600), # augmented input
             nn.LeakyReLU(),
-            nn.Linear(800, 400),
+            nn.Linear(1600, 800),
             nn.LeakyReLU(),
-            nn.Linear(400, 1)
+            nn.Linear(800, 1)
         )
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.LeakyReLU()
@@ -34,24 +34,22 @@ class MazePTRModel(nn.Module):
         return self.final_PE[x]
     
     def forward(self, x):
-        # apply the linear layers to each state in the state pair
+        x = x.to(torch.int)
         # take the position encoding of the state
-        aug_state_1 = torch.cat([self.final_PE[a] for a in x[:, 0, 0]], dim=0)
-        aug_state_2 = torch.cat([self.final_PE[a] for a in x[:, 0, 0]], dim=0)
+        # create an input tensor from the final position encoding table, where each row is the position encoding of a state
+        aug_state_1 = torch.cat((self.pe[x[:, 0, 0]], self.pe[x[:, 0, 1]]), dim=1)
+        aug_state_2 = torch.cat((self.pe[x[:, 1, 0]], self.pe[x[:, 1, 1]]), dim=1)
 
-        x1 = self.fc(x[:, 0])
-        
-        #x1 = torch.exp(x1)
+        x1 = self.fc(aug_state_1)
         t_left_1 = x1[:, 0].unsqueeze(1)
-        x2 = self.fc(x[:, 1])
-        #x2 = torch.exp(x2)
+        x2 = self.fc(aug_state_2)
         t_left_2 = x2[:, 0].unsqueeze(1)
         return self.sigmoid(t_left_1 - t_left_2)
     
     def predict_time_to_goal(self, x):
-        x = torch.cat((x, torch.ones(x.shape[0], 1)), dim=1)
-        t = self.fc(x)
-        #t = torch.exp(t)
+        x = x.to(torch.int)
+        aug_state = torch.cat((self.pe[x[:, 0]], self.pe[x[:, 1]]), dim=1)
+        t = self.fc(aug_state)
         t = t[:, 0].unsqueeze(1)
         return t
 

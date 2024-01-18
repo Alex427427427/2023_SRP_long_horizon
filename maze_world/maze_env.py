@@ -70,6 +70,7 @@ class Maze():
             rewards = 1 - time_proximity_to_goal
             self.times = time_proximity_to_goal
             self.reward_landscape = rewards
+            #self.reward_landscape[self.gx, self.gy] = goal_reward
         
     # apply a gaussian contraction on the reward landscape
     def shrink_reward(self, shrink_scaling=1, shrink_order=1):
