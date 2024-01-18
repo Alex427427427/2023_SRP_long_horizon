@@ -28,15 +28,16 @@ class Maze():
     # note the array is flipped when plotted
     def __init__(self,sparse=True,model=None, move_penalty=0.05, goal_reward=10.0, collision_penalty=0.5):
         # create an occupancy map
-        self.occ_map = png_to_numpy("mazes/maze_1.png")
+        self.occ_map = png_to_numpy("mazes/maze_2.png")
         self.collision_penalty = collision_penalty
 
         self.Nx = self.occ_map.shape[0]
         self.Ny = self.occ_map.shape[1]
 
         # goal location and reward
-        self.gx = 19 
-        self.gy = 15
+        '''maze 1: 19, 15; maze 2: 128, 71'''
+        self.gx = 25 
+        self.gy = 13
         self.goal_reward = goal_reward
 
         # randomly select a free state
