@@ -7,6 +7,9 @@ import torch
 import os
 import glob
 
+import random
+from queue import Queue
+
 # all map representations follow classical cartesian coordinates, with the origin at the bottom left corner of the map,
 # the x axis pointing to the right, and the y axis pointing upwards.
 # the x cooresponding to the first index to arrays and the y corresponding ot the second index to arrays.
@@ -23,12 +26,50 @@ def png_to_numpy(png_file):
     img = (img < 0.5).astype(np.float32) # everything below a certain darkness is an obstacle.
     return img
 
+def create_maze(dim):
+    if dim % 2 == 0:
+        dim += 1
+    # Create a grid filled with walls
+    maze = np.ones((dim, dim))
+
+    # Define the starting point
+    x, y = (0, 0)
+    maze[2*x+1, 2*y+1] = 0
+
+    # Initialize the stack with the starting point
+    stack = [(x, y)]
+    while len(stack) > 0:
+        x, y = stack[-1]
+
+        # Define possible directions
+        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+        random.shuffle(directions)
+
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy
+            if nx >= 0 and ny >= 0 and nx < (dim-1)/2 and ny < (dim-1)/2 and maze[2*nx+1, 2*ny+1] == 1:
+                maze[2*nx+1, 2*ny+1] = 0
+                maze[2*x+1+dx, 2*y+1+dy] = 0
+                stack.append((nx, ny))
+                break
+        else:
+            stack.pop()
+            
+    # Create an entrance and an exit
+    maze[1, 0] = 0
+    maze[-2, -1] = 0
+
+    return maze
+
+
+
 # a reinforcement learning environment, a 2D maze. 
 class Maze():
     # note the array is flipped when plotted
     def __init__(self,sparse=True,model=None, move_penalty=0.05, goal_reward=10.0, collision_penalty=0.5):
         # create an occupancy map
-        self.occ_map = png_to_numpy("mazes/maze_2.png")
+        #self.occ_map = png_to_numpy("mazes/maze_2.png")
+        self.occ_map = create_maze(41) # size MUST be ODD!
         self.collision_penalty = collision_penalty
 
         self.Nx = self.occ_map.shape[0]
@@ -36,8 +77,11 @@ class Maze():
 
         # goal location and reward
         '''maze 1: 19, 15; maze 2: 128, 71'''
-        self.gx = 25 
-        self.gy = 13
+        #self.gx = 25 
+        #self.gy = 13
+        goal_state = self.free_state_search()
+        self.gx = goal_state[0]
+        self.gy = goal_state[1]
         self.goal_reward = goal_reward
 
         # randomly select a free state
@@ -96,8 +140,8 @@ class Maze():
             y0 = np.random.randint(self.Ny)
             #if the location is not an obstacle, is not the goal, then break
             obs = self.occ_map[x0,y0]
-            goal = (x0 == self.gx) and (y0 == self.gy)
-            if (obs == 0) and (not goal):
+            #goal = (x0 == self.gx) and (y0 == self.gy)
+            if obs == 0:
                 break
         return np.array([x0,y0])
     
