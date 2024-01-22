@@ -42,7 +42,7 @@ def find_goal_location(image_path):
             blue = rgb[2]
             # Check if it's a red pixel (adjust the threshold based on your image)
             if red > 0.7 and green < 0.3 and blue < 0.3:
-                return (col, height - 1 - row)
+                return (row, col)
 
 # given a coordinate, returns whether the coordinate is in the start zone, indicated by green pixels. 
 def is_start_zone(image_path, x, y):

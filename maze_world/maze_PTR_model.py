@@ -21,11 +21,11 @@ class MazePTRModel(nn.Module):
 
         # network
         self.fc = nn.Sequential(
-            nn.Linear(2*self.feature_dimension, 1600), # augmented input
+            nn.Linear(2*self.feature_dimension, 800), # augmented input
             nn.LeakyReLU(),
-            nn.Linear(1600, 800),
+            nn.Linear(800, 400),
             nn.LeakyReLU(),
-            nn.Linear(800, 1)
+            nn.Linear(400, 1)
         )
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.LeakyReLU()
