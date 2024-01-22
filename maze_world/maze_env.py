@@ -7,8 +7,6 @@ import torch
 import os
 import glob
 
-import random
-from queue import Queue
 
 # all map representations follow classical cartesian coordinates, with the origin at the bottom left corner of the map,
 # the x axis pointing to the right, and the y axis pointing upwards.
@@ -17,71 +15,66 @@ from queue import Queue
 # create a function to take in png and convert into a numpy array
 # takes in a png filename
 # returns a numpy array
-def png_to_numpy(png_file):
+def png_to_occ_map(png_file):
     # read in the png file
     img = plt.imread(png_file)
     # convert to grayscale
     img = np.mean(img,axis=2)
     # convert to binary
-    img = (img < 0.5).astype(np.float32) # everything below a certain darkness is an obstacle.
+    img = (img < 0.1).astype(np.float32) # everything below a certain darkness is an obstacle.
     return img
 
-def create_maze(dim):
-    if dim % 2 == 0:
-        dim += 1
-    # Create a grid filled with walls
-    maze = np.ones((dim, dim))
+# extract the location of the goal
+def find_goal_location(image_path):
+    # Open the image
+    img = plt.imread(image_path)
 
-    # Define the starting point
-    x, y = (0, 0)
-    maze[2*x+1, 2*y+1] = 0
+    # Get the width and height of the image
+    height, width, channels = img.shape
 
-    # Initialize the stack with the starting point
-    stack = [(x, y)]
-    while len(stack) > 0:
-        x, y = stack[-1]
+    # Iterate through each pixel to find the red pixel
+    for row in range(height):
+        for col in range(width):
+            # Get the RGB values of the pixel
+            rgb = img[row, col]
+            red = rgb[0]
+            green = rgb[1]
+            blue = rgb[2]
+            # Check if it's a red pixel (adjust the threshold based on your image)
+            if red > 0.7 and green < 0.3 and blue < 0.3:
+                return (col, height - 1 - row)
 
-        # Define possible directions
-        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
-        random.shuffle(directions)
+# given a coordinate, returns whether the coordinate is in the start zone, indicated by green pixels. 
+def is_start_zone(image_path, x, y):
+    # green pixel is the start zone
+    img = plt.imread(image_path)
+    height, width, channels = img.shape
+    rgb = img[x, y]
+    red = rgb[0]
+    green = rgb[1]
+    blue = rgb[2]
+    if red < 0.3 and green > 0.7 and blue < 0.3:
+        return True
+    else:
+        return False
 
-        for dx, dy in directions:
-            nx, ny = x + dx, y + dy
-            if nx >= 0 and ny >= 0 and nx < (dim-1)/2 and ny < (dim-1)/2 and maze[2*nx+1, 2*ny+1] == 1:
-                maze[2*nx+1, 2*ny+1] = 0
-                maze[2*x+1+dx, 2*y+1+dy] = 0
-                stack.append((nx, ny))
-                break
-        else:
-            stack.pop()
-            
-    # Create an entrance and an exit
-    maze[1, 0] = 0
-    maze[-2, -1] = 0
-
-    return maze
-
-
+image_path = "mazes/maze_procedural_1.png"
 
 # a reinforcement learning environment, a 2D maze. 
 class Maze():
     # note the array is flipped when plotted
     def __init__(self,sparse=True,model=None, move_penalty=0.05, goal_reward=10.0, collision_penalty=0.5):
         # create an occupancy map
-        #self.occ_map = png_to_numpy("mazes/maze_2.png")
-        self.occ_map = create_maze(41) # size MUST be ODD!
+        self.occ_map = png_to_occ_map(image_path)
         self.collision_penalty = collision_penalty
 
         self.Nx = self.occ_map.shape[0]
         self.Ny = self.occ_map.shape[1]
 
         # goal location and reward
-        '''maze 1: 19, 15; maze 2: 128, 71'''
-        #self.gx = 25 
-        #self.gy = 13
-        goal_state = self.free_state_search()
-        self.gx = goal_state[0]
-        self.gy = goal_state[1]
+        goal_tuple = find_goal_location(image_path)
+        self.gx = goal_tuple[0] 
+        self.gy = goal_tuple[1]
         self.goal_reward = goal_reward
 
         # randomly select a free state
@@ -140,8 +133,8 @@ class Maze():
             y0 = np.random.randint(self.Ny)
             #if the location is not an obstacle, is not the goal, then break
             obs = self.occ_map[x0,y0]
-            #goal = (x0 == self.gx) and (y0 == self.gy)
-            if obs == 0:
+            goal = (x0 == self.gx) and (y0 == self.gy)
+            if (obs == 0) and (not goal):
                 break
         return np.array([x0,y0])
     
