@@ -1,32 +1,34 @@
-import numpy as np
+# plot an increasing line with 100000 points, but with a large variance
+# in the y direction
 import matplotlib.pyplot as plt
+import numpy as np
+import random
 
-def plot_average_with_uncertainty(*lists, confidence_interval=95):
-    # Convert lists to numpy arrays
-    arrays = [np.array(lst) for lst in lists]
 
-    # Calculate the mean and standard deviation across lists
-    mean_values = np.mean(arrays, axis=0)
-    std_dev_values = np.std(arrays, axis=0)
 
-    # Calculate confidence interval bounds
-    lower_bound = np.percentile(arrays, (100 - confidence_interval) / 2, axis=0)
-    upper_bound = np.percentile(arrays, 100 - (100 - confidence_interval) / 2, axis=0)
+import torch
 
-    # Plot the mean with error bars
-    plt.errorbar(range(len(mean_values)), mean_values, yerr=std_dev_values, fmt='o', label='Mean with Std Dev')
-    plt.fill_between(range(len(lower_bound)), lower_bound, upper_bound, alpha=0.3, label=f'{confidence_interval}% Confidence Interval')
+def average_filter(input_list, window_size=3):
+    # Create a tensor from the input list
+    input_tensor = torch.tensor(input_list, dtype=torch.float32)
 
-    # Customize the plot as needed
-    plt.xlabel('X-axis Label')
-    plt.ylabel('Y-axis Label')
-    plt.title('Average with Uncertainty')
-    plt.legend()
-    plt.show()
+    # Use convolution to perform the average filter
+    kernel = torch.ones(window_size) / window_size
+    result_tensor = torch.nn.functional.conv1d(input_tensor.view(1, 1, -1), kernel.view(1, 1, -1), padding=window_size // 2)[0, 0, :]
 
-# Example usage with three lists
-list1 = [1, 2, 3, 4, 5]
-list2 = [2, 3, 4, 5, 6]
-list3 = [3, 4, 5, 6, 7]
+    return result_tensor.numpy()
 
-plot_average_with_uncertainty(list1, list2, list3)
+
+
+x = np.linspace(0, 10, 100000)
+y = np.zeros(100000)
+for i in range(100000):
+    y[i] = random.random() * 1000 + i / 1000
+
+y_filtered = average_filter(y, 1000)
+
+plt.plot(x, y, "k-", alpha=0.1)
+plt.show()
+
+plt.plot(x, y_filtered[:-1], "ko", alpha=0.1)
+plt.show()
