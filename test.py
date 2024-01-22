@@ -1,24 +1,32 @@
-import torch
+import numpy as np
+import matplotlib.pyplot as plt
 
-# positional encoding
-feature_dimension = 10
-max_spatial_period = 40
-even_i = torch.arange(0, feature_dimension, 2).float()   # even indices starting at 0
-odd_i = torch.arange(1, feature_dimension, 2).float()    # odd indices starting at 1
-denominator = torch.pow(max_spatial_period, even_i / feature_dimension)
-positions = torch.arange(max_spatial_period, dtype=torch.float).reshape(max_spatial_period, 1)
-even_PE = torch.sin(positions / denominator)
-odd_PE =  torch.cos(positions / denominator)
-stacked = torch.stack([even_PE, odd_PE], dim=2)
-final_PE = torch.flatten(stacked, start_dim=1, end_dim=2)
+def plot_average_with_uncertainty(*lists, confidence_interval=95):
+    # Convert lists to numpy arrays
+    arrays = [np.array(lst) for lst in lists]
 
-x = torch.randint(0, 40, (7, 2, 2))
-print(x)
+    # Calculate the mean and standard deviation across lists
+    mean_values = np.mean(arrays, axis=0)
+    std_dev_values = np.std(arrays, axis=0)
 
-print(final_PE)
+    # Calculate confidence interval bounds
+    lower_bound = np.percentile(arrays, (100 - confidence_interval) / 2, axis=0)
+    upper_bound = np.percentile(arrays, 100 - (100 - confidence_interval) / 2, axis=0)
 
-print(x[:,0,0])
+    # Plot the mean with error bars
+    plt.errorbar(range(len(mean_values)), mean_values, yerr=std_dev_values, fmt='o', label='Mean with Std Dev')
+    plt.fill_between(range(len(lower_bound)), lower_bound, upper_bound, alpha=0.3, label=f'{confidence_interval}% Confidence Interval')
 
-print(final_PE[x[:, 0, 0]])
+    # Customize the plot as needed
+    plt.xlabel('X-axis Label')
+    plt.ylabel('Y-axis Label')
+    plt.title('Average with Uncertainty')
+    plt.legend()
+    plt.show()
 
-print(final_PE[x[:, 0, 0].flatten()])
+# Example usage with three lists
+list1 = [1, 2, 3, 4, 5]
+list2 = [2, 3, 4, 5, 6]
+list3 = [3, 4, 5, 6, 7]
+
+plot_average_with_uncertainty(list1, list2, list3)
