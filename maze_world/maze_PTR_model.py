@@ -8,8 +8,8 @@ class MazePTRModel(nn.Module):
         super(MazePTRModel, self).__init__()
         
         # positional encoding
-        self.feature_dimension = 40
-        self.max_spatial_period = 40
+        self.feature_dimension = 20
+        self.max_spatial_period = 20
         even_i = torch.arange(0, self.feature_dimension, 2).float()   # even indices starting at 0
         odd_i = torch.arange(1, self.feature_dimension, 2).float()    # odd indices starting at 1
         denominator = torch.pow(self.max_spatial_period, even_i / self.feature_dimension)

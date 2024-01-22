@@ -58,7 +58,7 @@ def is_start_zone(image_path, x, y):
     else:
         return False
 
-image_path = "mazes/maze_procedural_1.png"
+image_path = "mazes/maze_procedural_2.png"
 
 # a reinforcement learning environment, a 2D maze. 
 class Maze():
@@ -379,7 +379,7 @@ class Maze():
                 plt.title('Best action')
 
                 plt.subplot(2,1,2)
-                plt.plot(rewards,'o',alpha=0.01)
+                plt.plot(rewards,'ko',alpha=0.01)
                 plt.ylabel('Reward')
                 plt.xlabel('Env interaction')
 
