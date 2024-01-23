@@ -28,7 +28,7 @@ class PPOAgent:
         self.epsilon_clip = epsilon_clip
 
     def compute_advantage(self, rewards, values, dones):
-        advantages = np.zeros_like(rewards, dtype=np.float32)
+        advantages = np.zeros((len(rewards), len(values[0])), dtype=np.float32)
         last_advantage = 0
         last_value = 0
 
@@ -36,29 +36,35 @@ class PPOAgent:
             mask = 1.0 - dones[t]
             delta = rewards[t] + self.gamma * last_value * mask - values[t]
             last_advantage = delta + self.gamma * self.epsilon_clip * last_advantage * mask
-            advantages[t] = last_advantage
+            advantages[t], advantages[t] = last_advantage
             last_value = values[t]
 
         return advantages
 
     def update_policy(self, states, actions, old_probs, advantages, returns):
-        states = torch.FloatTensor(states)
-        actions = torch.LongTensor(actions)
-        old_probs = torch.FloatTensor(old_probs)
+        #states = torch.FloatTensor(states)
+        #actions = torch.LongTensor(actions)
+        #old_probs = torch.FloatTensor(old_probs)
         advantages = torch.FloatTensor(advantages)
         returns = torch.FloatTensor(returns)
 
         # Calculate new probabilities and ratios
-        new_probs = self.policy(states).gather(1, actions.unsqueeze(1))
+        new_probs = self.policy(states)
         ratio = new_probs / old_probs
+        print(new_probs.shape)
+        print(old_probs.shape)
+        print(ratio.shape)
+        print(advantages.shape)
 
         # PPO loss function
         surr1 = ratio * advantages
         surr2 = torch.clamp(ratio, 1 - self.epsilon_clip, 1 + self.epsilon_clip) * advantages
         policy_loss = -torch.min(surr1, surr2).mean()
 
+        print(returns.shape)
+        print(self.policy(states).shape)
         # Value function loss
-        value_loss = 0.5 * nn.MSELoss()(returns, self.policy(states))
+        value_loss = 0.5 * nn.MSELoss(returns, self.policy(states))
 
         # Total loss
         loss = policy_loss + value_loss
