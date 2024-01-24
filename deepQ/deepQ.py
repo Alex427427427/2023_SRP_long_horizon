@@ -19,8 +19,22 @@ class DeepQ(nn.Module):
                 nn.init.uniform_(m.weight, -0.1, 0.1)
                 nn.init.uniform_(m.bias, -0.1, 0.1)
 
+        # positional encoding
+        self.feature_dimension = 20
+        self.max_spatial_period = 20
+        even_i = torch.arange(0, self.feature_dimension, 2).float()   # even indices starting at 0
+        odd_i = torch.arange(1, self.feature_dimension, 2).float()    # odd indices starting at 1
+        denominator = torch.pow(self.max_spatial_period, even_i / self.feature_dimension)
+        positions = torch.arange(self.max_spatial_period, dtype=torch.float).reshape(self.max_spatial_period, 1)
+        even_PE = torch.sin(positions / denominator)
+        odd_PE =  torch.cos(positions / denominator)
+        stacked = torch.stack([even_PE, odd_PE], dim=2)
+        self.pe = torch.flatten(stacked, start_dim=1, end_dim=2)
+
     def forward(self, state):
-        x = self.fc(state)
+        x = state.to(torch.int)
+        aug_state = torch.cat((self.pe[x[:, 0]], self.pe[x[:, 1]]), dim=1)
+        x = self.fc(x)
         return x
     
 class Agent():
