@@ -10,6 +10,62 @@ import cv2
 import gymnasium
 from gymnasium import spaces
 
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim
+
+# create a preference learning model
+class MazePTRModel(nn.Module):
+    def __init__(self, maze_size=40):
+        super(MazePTRModel, self).__init__()
+        
+        # positional encoding
+        self.feature_dimension = maze_size
+        self.max_spatial_period = self.feature_dimension
+        even_i = torch.arange(0, self.feature_dimension, 2).float()   # even indices starting at 0
+        odd_i = torch.arange(1, self.feature_dimension, 2).float()    # odd indices starting at 1
+        denominator = torch.pow(self.max_spatial_period, even_i / self.feature_dimension)
+        positions = torch.arange(self.max_spatial_period, dtype=torch.float).reshape(self.max_spatial_period, 1)
+        even_PE = torch.sin(positions / denominator)
+        odd_PE =  torch.cos(positions / denominator)
+        stacked = torch.stack([even_PE, odd_PE], dim=2)
+        self.pe = torch.flatten(stacked, start_dim=1, end_dim=2)
+
+        # network
+        self.fc = nn.Sequential(
+            nn.Linear(2*self.feature_dimension, 800), # augmented input
+            nn.LeakyReLU(),
+            nn.Linear(800, 400),
+            nn.LeakyReLU(),
+            nn.Linear(400, 1)
+        )
+        self.sigmoid = nn.Sigmoid()
+        self.relu = nn.LeakyReLU()
+
+    #def pe(self, x):
+        #return self.final_PE[x]
+    
+    def forward(self, x):
+        x = x.to(torch.int)
+        # take the position encoding of the state
+        # create an input tensor from the final position encoding table, where each row is the position encoding of a state
+        aug_state_1 = torch.cat((self.pe[x[:, 0, 0]], self.pe[x[:, 0, 1]]), dim=1)
+        aug_state_2 = torch.cat((self.pe[x[:, 1, 0]], self.pe[x[:, 1, 1]]), dim=1)
+
+        x1 = self.fc(aug_state_1)
+        t_left_1 = x1[:, 0].unsqueeze(1)
+        x2 = self.fc(aug_state_2)
+        t_left_2 = x2[:, 0].unsqueeze(1)
+        return self.sigmoid(t_left_1 - t_left_2)
+    
+    def predict_time_to_goal(self, x):
+        x = x.to(torch.int)
+        aug_state = torch.cat((self.pe[x[:, 0]], self.pe[x[:, 1]]), dim=1)
+        t = self.fc(aug_state)
+        t = t[:, 0].unsqueeze(1)
+        return t
+
+
 
 # all map representations follow classical cartesian coordinates, with the origin at the bottom left corner of the map,
 # the x axis pointing to the right, and the y axis pointing upwards.
@@ -47,13 +103,17 @@ def find_goal_location(image_path):
             if red > 0.7 and green < 0.3 and blue < 0.3:
                 return (row, col)
 
-image_path = "maze_procedural_1.png"
+image_path = "maze_procedural_2.png"
+model_path = "last_model.pt"
 
 # a reinforcement learning environment, a 2D maze. 
 class MazeGym(gymnasium.Env):
+    metadata = {"render_modes": ["human"], "render_fps": 30}
     # note the array is flipped when plotted
-    def __init__(self,sparse=True,model=None, move_penalty=0.05, goal_reward=10.0, collision_penalty=0.5, lifespan=1000):
+    def __init__(self,mode="human", sparse=True,model=None, move_penalty=0.05, goal_reward=10.0, collision_penalty=0.5, lifespan=400):
         super(MazeGym, self).__init__()
+        self.mode = mode
+
         # create an occupancy map
         self.occ_map = png_to_occ_map(image_path)
         self.img = plt.imread(image_path)
@@ -72,12 +132,24 @@ class MazeGym(gymnasium.Env):
         self.age = 0
 
         # actions: up down left right
-        self.action_look_up = np.array([[0,1],[0,-1],[-1,0],[1,0],[0,0]]) # up down left right stay
+        self.action_look_up = np.array([[0,1],[0,-1],[-1,0],[1,0]]) # up down left right stay
         self.action_space = spaces.Discrete(len(self.action_look_up))
         self.move_penalty = move_penalty
 
         # states: x y
-        self.observation_space = spaces.Box(low=np.array([0,0]), high=np.array([self.Nx-1,self.Ny-1]), dtype=np.int64)
+        # positional encoding
+        self.feature_dimension = self.Nx
+        self.max_spatial_period = self.Nx
+        even_i = torch.arange(0, self.feature_dimension, 2).float()   # even indices starting at 0
+        odd_i = torch.arange(1, self.feature_dimension, 2).float()    # odd indices starting at 1
+        denominator = torch.pow(self.max_spatial_period, even_i / self.feature_dimension)
+        positions = torch.arange(self.max_spatial_period, dtype=torch.float).reshape(self.max_spatial_period, 1)
+        even_PE = torch.sin(positions / denominator)
+        odd_PE =  torch.cos(positions / denominator)
+        stacked = torch.stack([even_PE, odd_PE], dim=2)
+        self.pe = torch.flatten(stacked, start_dim=1, end_dim=2)
+        #self.observation_space = spaces.Box(low=np.array([0,0]), high=np.array([self.Nx-1,self.Ny-1]), dtype=np.int64)
+        self.observation_space = spaces.Box(low=np.zeros(2*len(self.pe[0])), high=np.ones(2*len(self.pe[0])), dtype=np.float64)
         # randomly select a free state
         self.state = self.free_state_search()
 
@@ -93,11 +165,12 @@ class MazeGym(gymnasium.Env):
             y = np.arange(self.Ny) # create y coord array
             yy,xx = np.meshgrid(x,y) # create matrices of x and y coords, as separate matrices, that can be served as input to 
             # some multidimensional function
-            self.model = model
+            self.model = MazePTRModel(maze_size=self.Nx)
+            self.model.load_state_dict(torch.load(model_path))
             # create a tensor of the grid
             grid = torch.tensor(np.stack([xx.flatten(), yy.flatten()], axis=1), dtype=torch.float)
             # get the predictions
-            time_proximity_to_goal = model.predict_time_to_goal(grid).detach().numpy()
+            time_proximity_to_goal = self.model.predict_time_to_goal(grid).detach().numpy()
             # reshape the predictions
             time_proximity_to_goal = time_proximity_to_goal.reshape(self.Nx, self.Ny)
             #rewards = np.exp(-1*time_proximity_to_goal)
@@ -105,7 +178,7 @@ class MazeGym(gymnasium.Env):
             rewards = 1 - time_proximity_to_goal
             self.times = time_proximity_to_goal
             self.reward_landscape = rewards
-            #self.reward_landscape[self.gx, self.gy] = goal_reward
+            self.reward_landscape[self.gx, self.gy] = goal_reward
         
     # apply a gaussian contraction on the reward landscape
     def shrink_reward(self, shrink_scaling=1, shrink_order=1):
@@ -127,7 +200,9 @@ class MazeGym(gymnasium.Env):
         info = {}
         self.age = 0
         self.state = self.free_state_search()
-        return np.copy(self.state), info
+        state_index = np.round(self.state).astype(int)
+        observation = np.concatenate((self.pe[state_index[0]], self.pe[state_index[1]]), axis=0)
+        return np.copy(observation), info
 
     # apply action and update the state
     def movement_control(self,X,u):
@@ -174,13 +249,16 @@ class MazeGym(gymnasium.Env):
             terminated = True
             truncated = True
 
-        return new_state, reward, terminated, truncated, info
+        new_state_index = np.round(new_state).astype(int)
+        new_observation = np.concatenate((self.pe[new_state_index[0]], self.pe[new_state_index[1]]), axis=0)
+
+        return new_observation, reward, terminated, truncated, info
     
-    def render(self, mode='human'):
+    def render(self, mode="human"):
         self.img[self.state[0],self.state[1],:] = [0,0,1]
         upsized = cv2.resize(self.img, dsize=(500, 500), interpolation=cv2.INTER_NEAREST)
         cv2.imshow('maze', upsized)
-        cv2.waitKey(1)
+        cv2.waitKey(100)
         self.img[self.state[0],self.state[1],:] = [1,1,1]
 
     def close(self):
