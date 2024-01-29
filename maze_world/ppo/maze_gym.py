@@ -15,8 +15,8 @@ import torch.nn.functional as F
 import torch.optim
 
 
-image_path = "../mazes/maze_procedural_2.png"
-model_path = "models/last_model.pt"
+image_path = "../mazes/maze_procedural_1.png"
+model_path = "models/40_model.pt"
 
 
 # all map representations follow classical cartesian coordinates, with the origin at the bottom left corner of the map,
