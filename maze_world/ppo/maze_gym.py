@@ -14,6 +14,52 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim
 
+
+image_path = "../mazes/maze_procedural_2.png"
+model_path = "models/last_model.pt"
+
+
+# all map representations follow classical cartesian coordinates, with the origin at the bottom left corner of the map,
+# the x axis pointing to the right, and the y axis pointing upwards.
+# the x cooresponding to the first index to arrays and the y corresponding ot the second index to arrays.
+
+# create a function to take in png and convert into a numpy array
+# takes in a png filename
+# returns a numpy array
+def png_to_occ_map(png_file):
+    # read in the png file
+    img = plt.imread(png_file)
+    # convert to grayscale
+    img = np.mean(img,axis=2)
+    # convert to binary
+    img = (img < 0.1).astype(np.float32) # everything below a certain darkness is an obstacle.
+    return img
+
+# extract the location of the goal
+def find_goal_location(image_path):
+    # Open the image
+    img = plt.imread(image_path)
+
+    # Get the width and height of the image
+    height, width, channels = img.shape
+
+    # Iterate through each pixel to find the red pixel
+    for row in range(height):
+        for col in range(width):
+            # Get the RGB values of the pixel
+            rgb = img[row, col]
+            red = rgb[0]
+            green = rgb[1]
+            blue = rgb[2]
+            # Check if it's a red pixel (adjust the threshold based on your image)
+            if red > 0.7 and green < 0.3 and blue < 0.3:
+                return (row, col)
+
+
+
+
+
+
 # create a preference learning model
 class MazePTRModel(nn.Module):
     def __init__(self, maze_size=40):
@@ -65,46 +111,6 @@ class MazePTRModel(nn.Module):
         t = t[:, 0].unsqueeze(1)
         return t
 
-
-
-# all map representations follow classical cartesian coordinates, with the origin at the bottom left corner of the map,
-# the x axis pointing to the right, and the y axis pointing upwards.
-# the x cooresponding to the first index to arrays and the y corresponding ot the second index to arrays.
-
-# create a function to take in png and convert into a numpy array
-# takes in a png filename
-# returns a numpy array
-def png_to_occ_map(png_file):
-    # read in the png file
-    img = plt.imread(png_file)
-    # convert to grayscale
-    img = np.mean(img,axis=2)
-    # convert to binary
-    img = (img < 0.1).astype(np.float32) # everything below a certain darkness is an obstacle.
-    return img
-
-# extract the location of the goal
-def find_goal_location(image_path):
-    # Open the image
-    img = plt.imread(image_path)
-
-    # Get the width and height of the image
-    height, width, channels = img.shape
-
-    # Iterate through each pixel to find the red pixel
-    for row in range(height):
-        for col in range(width):
-            # Get the RGB values of the pixel
-            rgb = img[row, col]
-            red = rgb[0]
-            green = rgb[1]
-            blue = rgb[2]
-            # Check if it's a red pixel (adjust the threshold based on your image)
-            if red > 0.7 and green < 0.3 and blue < 0.3:
-                return (row, col)
-
-image_path = "maze_procedural_2.png"
-model_path = "last_model.pt"
 
 # a reinforcement learning environment, a 2D maze. 
 class MazeGym(gymnasium.Env):
