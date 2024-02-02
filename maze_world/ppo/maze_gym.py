@@ -32,7 +32,7 @@ def png_to_occ_map(png_file):
     # convert to grayscale
     img = np.mean(img,axis=2)
     # convert to binary
-    img = (img < 0.1).astype(np.float32) # everything below a certain darkness is an obstacle.
+    img = (img < 0.3).astype(np.float32) # everything below a certain darkness is an obstacle.
     return img
 
 # extract the location of the goal
