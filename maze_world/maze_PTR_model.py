@@ -29,22 +29,29 @@ class MazePTRModel(nn.Module):
         )
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.LeakyReLU()
-
-    def pe(self, x):
-        return self.final_PE[x]
     
-    def forward(self, x):
-        x = x.to(torch.int)
-        # take the position encoding of the state
-        # create an input tensor from the final position encoding table, where each row is the position encoding of a state
-        aug_state_1 = torch.cat((self.pe[x[:, 0, 0]], self.pe[x[:, 0, 1]]), dim=1)
-        aug_state_2 = torch.cat((self.pe[x[:, 1, 0]], self.pe[x[:, 1, 1]]), dim=1)
+    def forward(self, batch):
+        # shape: (batch_size, 2, seq_len, state_len)
+        x = batch.to(torch.int)
+        seq_len = x.shape[2]
 
+        aug_state_1 = torch.cat((self.pe[x[:, 0, 0, 0]], self.pe[x[:, 0, 0, 1]]), dim=1)
         x1 = self.fc(aug_state_1)
-        t_left_1 = x1[:, 0].unsqueeze(1)
+        aug_state_2 = torch.cat((self.pe[x[:, 1, 0, 0]], self.pe[x[:, 1, 0, 1]]), dim=1)
         x2 = self.fc(aug_state_2)
+        for i in range(1, seq_len):
+            aug_state_1 = torch.cat((self.pe[x[:, 0, i, 0]], self.pe[x[:, 0, i, 1]]), dim=1)
+            x1 += self.fc(aug_state_1)
+            aug_state_2 = torch.cat((self.pe[x[:, 1, i, 0]], self.pe[x[:, 1, i, 1]]), dim=1)
+            x2 += self.fc(aug_state_2)
+        x1 = x1 / seq_len
+        x2 = x2 / seq_len
+        t_left_1 = x1[:, 0].unsqueeze(1)
         t_left_2 = x2[:, 0].unsqueeze(1)
+
+        # batch_size x 1
         return self.sigmoid(t_left_1 - t_left_2)
+
     
     def predict_time_to_goal(self, x):
         x = x.to(torch.int)
@@ -55,7 +62,7 @@ class MazePTRModel(nn.Module):
 
 
 # create a preference learning model
-class MazePTRModel2(nn.Module):
+class MazePTRModelOld(nn.Module):
     def __init__(self):
         super(MazePTRModel, self).__init__()
         self.fc = nn.Sequential(
