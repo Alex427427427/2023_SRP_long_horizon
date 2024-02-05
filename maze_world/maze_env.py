@@ -21,7 +21,8 @@ def png_to_occ_map(png_file):
     # convert to grayscale
     img = np.mean(img,axis=2)
     # convert to binary
-    img = (img < 0.1).astype(np.float32) # everything below a certain darkness is an obstacle.
+    img = (img < 0.3).astype(np.float32) # everything below a certain darkness is an obstacle.
+    plt.show()
     return img
 
 # extract the location of the goal
@@ -63,7 +64,7 @@ image_path = "mazes/maze_procedural_1.png"
 # a reinforcement learning environment, a 2D maze. 
 class Maze():
     # note the array is flipped when plotted
-    def __init__(self,sparse=True,model=None, move_penalty=0.05, goal_reward=10.0, collision_penalty=0.5):
+    def __init__(self,sparse=True,model=None, move_penalty=0.01, goal_reward=10.0, collision_penalty=0.5):
         # create an occupancy map
         self.occ_map = png_to_occ_map(image_path)
         self.collision_penalty = collision_penalty
@@ -190,7 +191,7 @@ class Maze():
     def plot(self):
         # add 0.5 so that the state is plotted in the middle of the grid square
         state = np.copy(self.state)+0.5
-
+        
         plt.figure(figsize=(5,5))
         plt.imshow(self.occ_map.T, origin="lower", cmap='gray') # plot the occupancy map
         plt.plot(state[0],state[1],'ro') # agent location
