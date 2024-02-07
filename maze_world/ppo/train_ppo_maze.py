@@ -23,17 +23,17 @@ os.mkdir(folder)
 
 
 # create the environment
-env = MazeGym(sparse=False, mode="human", move_penalty=0.0, collision_penalty=0.0)
+env = MazeGym(sparse=True, mode="human", move_penalty=0.0, collision_penalty=0.0)
 # create the logger
 new_logger = configure(folder, ["stdout", "csv", "tensorboard"])
 
 # create the model
-policy_kwargs = dict(activation_fn=torch.nn.ReLU, net_arch=[dict(pi=[800, 800], vf=[800, 800])])
+policy_kwargs = dict(activation_fn=torch.nn.ReLU, net_arch=[dict(pi=[1600, 1600], vf=[1600, 1600])])
 model = PPO("MlpPolicy", env, policy_kwargs=policy_kwargs, verbose=1)
 # set the logger to the model
 model.set_logger(new_logger)
 # train the model
-model.learn(total_timesteps=500000)
+model.learn(total_timesteps=1000000)
 # save the model
 model.save("models/ppo_maze")
 

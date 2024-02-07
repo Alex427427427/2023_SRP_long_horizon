@@ -1,0 +1,53 @@
+spatial freq 1
+    traj length 1 : 4m 3.2s
+    traj length 2 :
+    traj length 3 : 11m 43.3s
+    traj length 4 : 
+    traj length 6 : 24m 22.6s
+    traj length 8 : 
+    traj length 12 : 51m 23.1s
+
+spatial freq 2
+    traj length 1 : 6m 12.7s
+    traj length 2 :
+    traj length 3 : 18m 15.2s
+    traj length 4 : 
+    traj length 6 : 39m 17.1s
+    traj length 8 : 
+    traj length 12 : 91m 27.9s
+
+spatial freq 3
+    traj length 1 : 8m 1.7s
+    traj length 2 :
+    traj length 3 : 23m 2.1s
+    traj length 4 : 
+    traj length 6 : 46m 16.4s
+    traj length 8 : 
+    traj length 12 : 
+
+spatial freq 4
+    traj length 1 : 
+    traj length 2 :
+    traj length 3 : 
+    traj length 4 : 
+    traj length 6 : 
+    traj length 8 : 
+    traj length 12 : 
+
+spatial freq 6
+    traj length 1 : 
+    traj length 2 :
+    traj length 3 : 
+    traj length 4 : 
+    traj length 6 : 
+    traj length 8 : 
+    traj length 12 : 
+
+spatial freq 8
+    traj length 1 : 
+    traj length 2 :
+    traj length 3 : 
+    traj length 4 : 
+    traj length 6 : 
+    traj length 8 : 
+    traj length 12 : 
