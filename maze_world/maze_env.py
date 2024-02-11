@@ -64,9 +64,9 @@ image_path = "mazes/maze_procedural_1.png"
 # a reinforcement learning environment, a 2D maze. 
 class Maze():
     # note the array is flipped when plotted
-    def __init__(self,sparse=True,model=None, move_penalty=0.01, goal_reward=10.0, collision_penalty=0.5):
+    def __init__(self,maze_image_path=image_path, use_true_reward=True, sparse=True,model=None, move_penalty=0.01, goal_reward=10.0, collision_penalty=0.5):
         # create an occupancy map
-        self.occ_map = png_to_occ_map(image_path)
+        self.occ_map = png_to_occ_map(maze_image_path)
         self.collision_penalty = collision_penalty
 
         self.Nx = self.occ_map.shape[0]
@@ -87,9 +87,13 @@ class Maze():
 
         # initialise reward landscape
         self.reward_landscape = np.zeros((self.Nx, self.Ny))
+        self.true_reward_landscape = np.zeros((self.Nx, self.Ny))
+        self.true_reward_landscape[self.gx, self.gy] = goal_reward
         
         # fill out reward landscape
+        self.use_true_reward = use_true_reward
         self.sparse = sparse
+        self.model = model
         if sparse or model is None:
             self.reward_landscape[self.gx, self.gy] = goal_reward
         else:
@@ -97,7 +101,7 @@ class Maze():
             y = np.arange(self.Ny) # create y coord array
             yy,xx = np.meshgrid(x,y) # create matrices of x and y coords, as separate matrices, that can be served as input to 
             # some multidimensional function
-            self.model = model
+            
             # create a tensor of the grid
             grid = torch.tensor(np.stack([xx.flatten(), yy.flatten()], axis=1), dtype=torch.float)
             # get the predictions
@@ -177,7 +181,10 @@ class Maze():
             done = True
 
         # compute reward
-        reward = self.reward_landscape[new_state[0],new_state[1]]
+        if self.use_true_reward:
+            reward = self.true_reward_landscape[new_state[0],new_state[1]]
+        else:
+            reward = self.reward_landscape[new_state[0],new_state[1]]
         # subtract movement penalty if the agent has not stayed still
         if idx != 4:
             reward = reward - self.move_penalty
@@ -186,6 +193,31 @@ class Maze():
             reward = reward - self.collision_penalty
 
         return self.state, reward, done
+    
+    def produce_initial_Q(self):
+        Q = np.zeros((self.Nx*self.Ny,self.action_space.shape[0]))
+
+        if self.model is not None and not self.sparse:
+            predicted_value_map = self.reward_landscape
+            for i, j in np.ndindex(self.Nx, self.Ny):
+                if self.occ_map[i, j]:
+                    predicted_value_map[i, j] = 0
+            predicted_value_map *= 1000
+
+            for i, j in np.ndindex(self.Nx, self.Ny):
+                if self.occ_map[i, j]:
+                    continue
+                self_value = predicted_value_map[i, j]
+                down_value = predicted_value_map[i, j] if i == 0 else predicted_value_map[i - 1, j]
+                up_value = predicted_value_map[i, j] if i == self.Nx - 1 else predicted_value_map[i + 1, j]
+                left_value = predicted_value_map[i, j] if j == 0 else predicted_value_map[i, j - 1]
+                right_value = predicted_value_map[i, j] if j == self.Ny - 1 else predicted_value_map[i, j + 1]
+                x_index_list = [i, i, i-1, i+1, i]
+                y_index_list = [j+1, j-1, j, j, j]
+                max_index = np.argmax([up_value, down_value, left_value, right_value, self_value])
+                Q[i * self.Ny + j, max_index] = predicted_value_map[x_index_list[max_index], y_index_list[max_index]]
+
+        return Q
     
     # plotting functions
     def plot(self):
